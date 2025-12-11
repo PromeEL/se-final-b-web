@@ -64,14 +64,29 @@ app.delete('/api/posts/:id', (req, res) => {
 
 // Get statistics for charts
 app.get('/api/statistics', (req, res) => {
-    // Calculate statistics
+    // Calculate statistics from actual posts
     const postsByMonth = {
-        'January': 1,
-        'February': 1,
-        'March': 1,
-        'April': 1,
-        'May': 1
+        'January': 0,
+        'February': 0,
+        'March': 0,
+        'April': 0,
+        'May': 0
     };
+    
+    // Count posts by month
+    posts.forEach(post => {
+        const monthMap = {
+            '01': 'January',
+            '02': 'February',
+            '03': 'March',
+            '04': 'April',
+            '05': 'May'
+        };
+        const month = post.createdAt.split('-')[1];
+        if (monthMap[month]) {
+            postsByMonth[monthMap[month]]++;
+        }
+    });
     
     const userActivity = {
         'Active': users.length,

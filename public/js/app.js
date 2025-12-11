@@ -26,8 +26,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Update page title
-            const pageTitle = this.textContent.replace(/[^\u4e00-\u9fa5a-zA-Z\s]/g, '').trim();
-            document.getElementById('page-title').textContent = pageTitle;
+            const pageTitles = {
+                'dashboard': 'Dashboard',
+                'users': '用户管理',
+                'posts': '内容管理'
+            };
+            document.getElementById('page-title').textContent = pageTitles[pageName] || 'Dashboard';
         });
     });
 });
