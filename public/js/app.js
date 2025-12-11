@@ -1,9 +1,19 @@
 // Navigation handling
+// Chart instances
+let postsChart = null;
+let usersChart = null;
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize the dashboard
     loadDashboard();
     loadUsers();
     loadPosts();
+
+    // Global resize handler for charts
+    window.addEventListener('resize', function() {
+        if (postsChart) postsChart.resize();
+        if (usersChart) usersChart.resize();
+    });
 
     // Navigation click handlers
     const navLinks = document.querySelectorAll('.nav-link');
@@ -65,7 +75,13 @@ async function loadDashboard() {
 // Initialize Posts Bar Chart
 function initPostsChart(data) {
     const chartDom = document.getElementById('posts-chart');
-    const myChart = echarts.init(chartDom);
+    
+    // Dispose existing chart instance if it exists
+    if (postsChart) {
+        postsChart.dispose();
+    }
+    
+    postsChart = echarts.init(chartDom);
     
     const option = {
         color: ['#3498db'],
@@ -108,18 +124,19 @@ function initPostsChart(data) {
         }]
     };
 
-    myChart.setOption(option);
-    
-    // Make chart responsive
-    window.addEventListener('resize', function() {
-        myChart.resize();
-    });
+    postsChart.setOption(option);
 }
 
 // Initialize Users Pie Chart
 function initUsersChart(data) {
     const chartDom = document.getElementById('users-chart');
-    const myChart = echarts.init(chartDom);
+    
+    // Dispose existing chart instance if it exists
+    if (usersChart) {
+        usersChart.dispose();
+    }
+    
+    usersChart = echarts.init(chartDom);
     
     const chartData = Object.keys(data).map(key => ({
         name: key === 'Active' ? '活跃用户' : '不活跃用户',
@@ -162,12 +179,7 @@ function initUsersChart(data) {
         }]
     };
 
-    myChart.setOption(option);
-    
-    // Make chart responsive
-    window.addEventListener('resize', function() {
-        myChart.resize();
-    });
+    usersChart.setOption(option);
 }
 
 // Load Users
