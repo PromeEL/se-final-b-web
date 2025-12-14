@@ -17,9 +17,13 @@
           <el-icon><User /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
-        <el-menu-item index="/posts" disabled>
+        <el-menu-item index="/content">
           <el-icon><Document /></el-icon>
           <span>内容管理 (B2)</span>
+        </el-menu-item>
+        <el-menu-item index="/dashboard">
+          <el-icon><Document /></el-icon>
+          <span>仪表盘 (B2)</span>
         </el-menu-item>
       </el-menu>
     </el-aside>

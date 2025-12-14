@@ -10,7 +10,18 @@ const routes = [
     path: '/users',
     name: 'UserList',
     component: UserList
+  },
+  {
+    path: '/content',
+    name: 'ContentList',
+    component: () => import('../views/ContentList.vue')
+  },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: () => import('../views/Dashboard.vue')
   }
+
 ]
 
 const router = createRouter({
