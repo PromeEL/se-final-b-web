@@ -1,14 +1,68 @@
 <template>
-  <div>
+  <div class="post-list">
     <h2>内容管理</h2>
-    <el-table :data="posts" style="width: 100%">
-      <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="author" label="作者" width="120" />
-      <el-table-column prop="content" label="内容" />
-      <el-table-column prop="createdAt" label="发布时间" width="180" />
-      <el-table-column label="操作" width="100">
-        <template #default="{ row }">
-          <el-button type="danger" size="small" @click="handleDelete(row.id)">删除</el-button>
+
+    <el-table :data="tableData" style="width: 100%" border>
+      <el-table-column prop="id" label="帖子ID" width="80" />
+
+      <!-- 文本内容列 -->
+      <el-table-column prop="textContent" label="文本内容" show-overflow-tooltip />
+
+      <!-- 【新增】媒体预览列 -->
+      <el-table-column label="媒体预览" width="180">
+        <template #default="scope">
+
+          <!-- 情况1：图片帖子 -->
+          <div v-if="scope.row.type === 'IMAGE' && scope.row.mediaList && scope.row.mediaList.length > 0">
+            <!-- 只显示第一张作为封面 -->
+            <el-image
+                style="width: 80px; height: 80px; border-radius: 4px;"
+                :src="getMediaUrl(scope.row.mediaList[0].url)"
+                :preview-src-list="scope.row.mediaList.map(item => getMediaUrl(item.url))"
+                preview-teleported
+                fit="cover"
+            >
+            </el-image>
+            <!-- 如果图片多于1张，显示数量提示 -->
+            <span v-if="scope.row.mediaList.length > 1" style="font-size: 12px; color: #888; margin-left: 5px;">
+              (共{{ scope.row.mediaList.length }}张)
+            </span>
+          </div>
+
+          <!-- 情况2：视频帖子 -->
+          <div v-else-if="scope.row.type === 'VIDEO' && scope.row.mediaList && scope.row.mediaList.length > 0">
+            <video
+                :src="getMediaUrl(scope.row.mediaList[0].url)"
+                controls
+                style="width: 140px; height: 80px; background: #000;"
+            ></video>
+          </div>
+
+          <!-- 情况3：无媒体 -->
+          <span v-else style="color: #ccc;">无媒体</span>
+
+        </template>
+      </el-table-column>
+
+      <!-- 类型列 -->
+      <el-table-column label="类型" width="100">
+        <template #default="scope">
+          <el-tag v-if="scope.row.type === 'TEXT'">纯文本</el-tag>
+          <el-tag v-else-if="scope.row.type === 'IMAGE'" type="success">图片</el-tag>
+          <el-tag v-else-if="scope.row.type === 'VIDEO'" type="warning">视频</el-tag>
+          <el-tag v-else type="danger">混合/未知</el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="userInfo.nickname" label="发布者" width="120" />
+
+      <el-table-column label="操作" width="120">
+        <template #default="scope">
+          <el-popconfirm title="确定要强制删除这条帖子吗？" @confirm="handleDelete(scope.row.id)">
+            <template #reference>
+              <el-button type="danger" size="small">删除</el-button>
+            </template>
+          </el-popconfirm>
         </template>
       </el-table-column>
     </el-table>
@@ -17,28 +71,56 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import request from '../utils/request'
+import { ElMessage } from 'element-plus'
 
-// 模拟数据，后续可替换为后端接口
-const posts = ref([
-  { id: 1, author: 'Alice', content: '今天阳光真好 ☀️', createdAt: '2025-01-01' },
-  { id: 2, author: 'Bob', content: '学习Vue3真开心！', createdAt: '2025-02-02' },
-  { id: 3, author: 'Charlie', content: '我上传了一张新图片', createdAt: '2025-03-03' }
-])
+const tableData = ref([])
 
-// 模拟加载数据
-async function fetchPosts() {
-  // 后续可以改成：
-  // const res = await axios.get('http://后端地址/api/posts')
-  // posts.value = res.data
+// 【重要】后端图片的基准地址
+// 如果你的后端端口是 8080，请保持如下；如果是其他端口请修改
+const BASE_URL = 'http://111.230.39.246:8080'
+
+// 工具函数：拼接完整的图片/视频 URL
+const getMediaUrl = (path) => {
+  if (!path) return ''
+  // 如果已经是 http 开头的完整路径，直接返回
+  if (path.startsWith('http')) return path
+  // 否则拼接后端地址
+  return `${BASE_URL}${path}`
 }
 
-// 删除帖子
-async function handleDelete(id) {
-  posts.value = posts.value.filter(p => p.id !== id)
-  // 后续可以改成：
-  // await axios.delete(`http://后端地址/api/posts/${id}`)
+const fetchData = async () => {
+  try {
+    const res = await request.get('/admin/post/list')
+    if (res.data && res.data.records) {
+      tableData.value = res.data.records
+    } else if (res.records) {
+      tableData.value = res.records
+    } else {
+      tableData.value = []
+    }
+  } catch (error) {
+    console.error('请求失败:', error)
+  }
 }
 
-onMounted(fetchPosts)
+const handleDelete = async (id) => {
+  try {
+    await request.post(`/admin/post/delete/${id}`)
+    ElMessage.success('删除成功')
+    fetchData()
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+onMounted(() => {
+  fetchData()
+})
 </script>
+
+<style scoped>
+.post-list {
+  padding: 20px;
+}
+</style>
