@@ -8,13 +8,11 @@
       <!-- 文本内容列 -->
       <el-table-column prop="textContent" label="文本内容" show-overflow-tooltip />
 
-      <!-- 【新增】媒体预览列 -->
+      <!-- 媒体预览列 -->
       <el-table-column label="媒体预览" width="180">
         <template #default="scope">
-
           <!-- 情况1：图片帖子 -->
           <div v-if="scope.row.type === 'IMAGE' && scope.row.mediaList && scope.row.mediaList.length > 0">
-            <!-- 只显示第一张作为封面 -->
             <el-image
                 style="width: 80px; height: 80px; border-radius: 4px;"
                 :src="getMediaUrl(scope.row.mediaList[0].url)"
@@ -23,7 +21,6 @@
                 fit="cover"
             >
             </el-image>
-            <!-- 如果图片多于1张，显示数量提示 -->
             <span v-if="scope.row.mediaList.length > 1" style="font-size: 12px; color: #888; margin-left: 5px;">
               (共{{ scope.row.mediaList.length }}张)
             </span>
@@ -40,7 +37,6 @@
 
           <!-- 情况3：无媒体 -->
           <span v-else style="color: #ccc;">无媒体</span>
-
         </template>
       </el-table-column>
 
@@ -66,6 +62,19 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 【新增】分页组件 -->
+    <div class="pagination-container">
+      <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[5, 10, 20, 50]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="total"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+      />
+    </div>
   </div>
 </template>
 
@@ -76,38 +85,71 @@ import { ElMessage } from 'element-plus'
 
 const tableData = ref([])
 
-// 【重要】后端图片的基准地址
-// 如果你的后端端口是 8080，请保持如下；如果是其他端口请修改
+// 【新增】分页相关变量
+const currentPage = ref(1) // 当前页码
+const pageSize = ref(10)   // 每页显示条数
+const total = ref(0)       // 总条数
+
 const BASE_URL = 'http://111.230.39.246:8080'
 
-// 工具函数：拼接完整的图片/视频 URL
 const getMediaUrl = (path) => {
   if (!path) return ''
-  // 如果已经是 http 开头的完整路径，直接返回
   if (path.startsWith('http')) return path
-  // 否则拼接后端地址
   return `${BASE_URL}${path}`
 }
 
+// 【修改】获取数据函数，增加分页参数
 const fetchData = async () => {
   try {
-    const res = await request.get('/admin/post/list')
-    if (res.data && res.data.records) {
-      tableData.value = res.data.records
-    } else if (res.records) {
-      tableData.value = res.records
+    // 注意：这里的 params 参数名 (pageNum, pageSize) 需要和你后端的接收参数名一致
+    // 如果后端用的是 'page', 'limit'，请自行修改下方 key 值
+    const res = await request.get('/admin/post/list', {
+      params: {
+        page: currentPage.value,
+        size: pageSize.value
+      }
+    })
+
+    // 兼容处理返回结构，并获取 total
+    const dataObj = res.data || res // 防止 request 拦截器处理层级不同
+
+    if (dataObj && dataObj.records) {
+      tableData.value = dataObj.records
+      total.value = Number(dataObj.total) || 0 // 更新总数
     } else {
       tableData.value = []
+      total.value = 0
     }
   } catch (error) {
     console.error('请求失败:', error)
+    ElMessage.error('获取列表失败')
   }
+}
+
+// 【新增】每页条数改变
+const handleSizeChange = (val) => {
+  pageSize.value = val
+  // 切换大小时通常重置回第一页，或者停留在当前页（视业务需求而定）
+  currentPage.value = 1
+  fetchData()
+}
+
+// 【新增】页码改变
+const handleCurrentChange = (val) => {
+  currentPage.value = val
+  fetchData()
 }
 
 const handleDelete = async (id) => {
   try {
     await request.post(`/admin/post/delete/${id}`)
     ElMessage.success('删除成功')
+
+    // 如果当前页只有一条数据且不是第一页，删除后自动跳转到上一页
+    if (tableData.value.length === 1 && currentPage.value > 1) {
+      currentPage.value--
+    }
+
     fetchData()
   } catch (error) {
     console.error(error)
@@ -122,5 +164,12 @@ onMounted(() => {
 <style scoped>
 .post-list {
   padding: 20px;
+}
+
+/* 【新增】分页栏样式 */
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end; /* 靠右显示，如果想居中改为 center */
 }
 </style>
