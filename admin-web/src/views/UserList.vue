@@ -4,12 +4,12 @@
     <el-card class="filter-card" shadow="hover">
       <el-form :inline="true" :model="searchForm" class="demo-form-inline">
         <el-form-item label="用户名">
-          <el-input 
-            v-model="searchForm.username" 
-            placeholder="请输入用户名" 
-            clearable 
-            @keyup.enter="handleSearch"
-            @clear="handleSearch"
+          <el-input
+              v-model="searchForm.username"
+              placeholder="请输入用户名"
+              clearable
+              @keyup.enter="handleSearch"
+              @clear="handleSearch"
           />
         </el-form-item>
         <el-form-item>
@@ -18,73 +18,72 @@
           </el-button>
           <el-button @click="resetSearch">重置</el-button>
         </el-form-item>
-        <el-form-item style="margin-left: auto;">
-          <el-button type="success" plain>
-            <el-icon><Plus /></el-icon> 新增用户
-          </el-button>
-        </el-form-item>
       </el-form>
     </el-card>
 
     <!-- 表格区域 -->
     <el-card class="table-card" shadow="hover">
-      <el-table 
-        :data="tableData" 
-        style="width: 100%" 
-        border 
-        stripe
-        v-loading="loading"
-        header-cell-class-name="table-header"
+      <el-table
+          :data="tableData"
+          style="width: 100%"
+          border
+          stripe
+          v-loading="loading"
+          header-cell-class-name="table-header"
       >
         <el-table-column prop="id" label="ID" width="80" align="center" />
-        <el-table-column prop="username" label="用户名" width="180">
+
+        <el-table-column prop="username" label="用户名" width="200">
           <template #default="scope">
             <div class="user-info">
-              <el-avatar :size="24" :src="scope.row.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
+              <!-- 头像显示 -->
+              <el-avatar :size="24" :src="scope.row.avatar">
+                {{ scope.row.username ? scope.row.username.charAt(0).toUpperCase() : 'U' }}
+              </el-avatar>
               <span style="margin-left: 10px">{{ scope.row.username }}</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="email" label="邮箱" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
+
+        <el-table-column prop="nickname" label="昵称" width="180" />
+
+        <el-table-column prop="role" label="角色" width="120" align="center">
           <template #default="scope">
-            <el-tag :type="scope.row.status === 'active' ? 'success' : 'danger'">
-              {{ scope.row.status === 'active' ? '正常' : '禁用' }}
+            <el-tag :type="scope.row.role === 'ADMIN' ? 'danger' : 'info'">
+              {{ scope.row.role === 'USER' ? '普通用户' : (scope.row.role === 'ADMIN' ? '管理员' : scope.row.role) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="注册时间" width="180" sortable />
-        <el-table-column label="操作" width="150" align="center" fixed="right">
+
+        <el-table-column prop="status" label="状态" width="150" align="center">
           <template #default="scope">
-            <el-button
-              type="primary"
-              link
-              size="small"
-            >
-              编辑
-            </el-button>
-            <el-button
-              type="danger"
-              link
-              size="small"
-              @click="handleDelete(scope.row)"
-            >
-              删除
-            </el-button>
+            <!-- 状态切换开关 -->
+            <el-switch
+                v-model="scope.row.status"
+                inline-prompt
+                active-text="正常"
+                inactive-text="封禁"
+                active-value="NORMAL"
+                inactive-value="BANNED"
+                :loading="scope.row.statusLoading"
+                @change="handleStatusChange(scope.row)"
+            />
           </template>
         </el-table-column>
+
+        <el-table-column prop="createTime" label="注册时间" min-width="180" sortable />
       </el-table>
 
       <!-- 分页 -->
       <div class="pagination-container">
         <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="total"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="total"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
         />
       </div>
     </el-card>
@@ -93,146 +92,128 @@
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus } from '@element-plus/icons-vue'
-import axios from 'axios'
+import { ElMessage } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
+import request from "../utils/request.js";
 
 const loading = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(10)
-const total = ref(100)
+const total = ref(0)
 
 const searchForm = reactive({
   username: ''
 })
 
-// 模拟原始数据（数据库）
-const mockUsers = [
-  {
-    id: 1,
-    username: 'user_001',
-    email: 'user001@example.com',
-    createTime: '2023-12-01 10:00:00',
-    status: 'active'
-  },
-  {
-    id: 2,
-    username: 'test_admin',
-    email: 'admin@test.com',
-    createTime: '2023-12-02 11:30:00',
-    status: 'active'
-  },
-  {
-    id: 3,
-    username: 'student_a',
-    email: 'student@school.edu',
-    createTime: '2023-12-05 09:15:00',
-    status: 'banned'
-  },
-  {
-    id: 4,
-    username: 'guest_99',
-    email: 'guest@temp.com',
-    createTime: '2023-12-10 14:20:00',
-    status: 'active'
-  },
-]
-
-// 表格显示的数据
 const tableData = ref([])
 
-const fetchUsers = async () => {
+// 1. 获取用户列表
+const fetchUserList = async () => {
   loading.value = true
-  
-  // 模拟网络延迟
-  setTimeout(() => {
-    // 模拟后端查询逻辑
-    const keyword = searchForm.username ? searchForm.username.trim().toLowerCase() : ''
-    
-    if (keyword) {
-      tableData.value = mockUsers.filter(user => 
-        user.username.toLowerCase().includes(keyword)
-      )
+  try {
+    // 接口文档: GET /admin/user/list
+    // 参数: page, size, username
+    const res = await request.get('/admin/user/list', {
+      params: {
+        page: currentPage.value,
+        size: pageSize.value,
+        username: searchForm.username || undefined
+      }
+    })
+
+    console.log('用户列表:', res)
+
+    if (res.code === 200) {
+      // 假设 res.data 包含了 records 和 total
+      // 如果你的后端直接返回 res.data = { records: [...], total: 10 }
+      const pageData = res.data
+      tableData.value = pageData.records || []
+      total.value = pageData.total || 0
     } else {
-      tableData.value = [...mockUsers]
+      ElMessage.error(res.msg || '获取列表失败')
     }
-    
-    total.value = tableData.value.length
+  } catch (error) {
+    console.error('获取用户列表错误:', error)
+    ElMessage.error('网络请求失败')
+  } finally {
     loading.value = false
-  }, 300)
+  }
 }
 
+// 2. 更新用户状态
+const handleStatusChange = async (row) => {
+  row.statusLoading = true
+
+  // 接口文档: POST /admin/user/status
+  // Body: { userId, status }
+  const params = {
+    userId: row.id,
+    status: row.status
+  }
+
+  try {
+    const res = await request.post('/admin/user/status', params)
+
+    if (res.code === 200) {
+      ElMessage.success('状态更新成功')
+    } else {
+      throw new Error(res.msg || '更新失败')
+    }
+  } catch (error) {
+    // 失败回滚
+    row.status = row.status === 'NORMAL' ? 'BANNED' : 'NORMAL'
+    ElMessage.error(error.message || '状态更新失败')
+  } finally {
+    row.statusLoading = false
+  }
+}
+
+// 搜索
 const handleSearch = () => {
-  ElMessage.success('执行搜索: ' + searchForm.username)
-  fetchUsers()
+  currentPage.value = 1
+  fetchUserList()
 }
 
+// 重置
 const resetSearch = () => {
   searchForm.username = ''
-  fetchUsers()
+  handleSearch()
 }
 
-const handleDelete = (row) => {
-  ElMessageBox.confirm(
-    `确定要删除用户 "${row.username}" 吗?`,
-    '警告',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
-    .then(() => {
-      // 模拟后端删除：从原始数据中移除
-      const index = mockUsers.findIndex(item => item.id === row.id)
-      if (index !== -1) {
-        mockUsers.splice(index, 1)
-      }
-      
-      // 重新获取数据以更新表格
-      fetchUsers()
-      
-      ElMessage.success('删除成功')
-    })
-    .catch(() => {})
-}
-
+// 分页条数改变
 const handleSizeChange = (val) => {
-  console.log(`${val} items per page`)
-}
-const handleCurrentChange = (val) => {
-  console.log(`current page: ${val}`)
+  pageSize.value = val
+  fetchUserList()
 }
 
+// 页码改变
+const handleCurrentChange = (val) => {
+  currentPage.value = val
+  fetchUserList()
+}
+
+// 初始化
 onMounted(() => {
-  fetchUsers()
+  fetchUserList()
 })
 </script>
 
 <style scoped>
-.user-list-container {
-  /* padding: 20px; */
-}
-
 .filter-card {
   margin-bottom: 20px;
 }
-
 .table-card {
   min-height: 500px;
 }
-
 .user-info {
   display: flex;
   align-items: center;
 }
-
 .pagination-container {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
 }
-
 :deep(.table-header) {
   background-color: #f5f7fa !important;
   color: #606266;
